@@ -9,6 +9,8 @@ import torchvision
 from torchvision import transforms
 import matplotlib.pyplot as plt
 
+device = 'cuda' if torch.cuda.is_available() else "cpu"
+
 # Load MNIST
 transform = transforms.Compose(
     [transforms.ToTensor(), transforms.Grayscale()]
@@ -28,7 +30,7 @@ class KAN_MNIST_model(nn.Module):
         
         self.model = torch.nn.Sequential(
             KAN([32*32, 128, 64, 10])
-        ).to('cuda')
+        ).to(device)
         
     def forward(self, X):
         X = X.view(-1, self.input_size)
@@ -61,8 +63,8 @@ def train(model, dataloader, loss_fn, optimizer, scheduler):
     
     total_loss = 0.
     for i, (features, labels) in enumerate(dataloader):
-        features = features.to('cuda')
-        labels = labels.to('cuda')
+        features = features.to(device)
+        labels = labels.to(device)
         
         output = model(features.float())
         loss = loss_fn(output, labels)
@@ -79,13 +81,13 @@ def train(model, dataloader, loss_fn, optimizer, scheduler):
     # Validate on training_set
     model.eval()
     
-    mca = MulticlassAccuracy(num_classes=10).to('cuda')
+    mca = MulticlassAccuracy(num_classes=10).to(device)
     total_output = None
     total_labels = None
     with torch.inference_mode():
         for i, (features, labels) in enumerate(dataloader):
-            features = features.to('cuda')
-            labels = labels.to('cuda')
+            features = features.to(device)
+            labels = labels.to(device)
             
             output = model(features.float())
             if total_output is None:
@@ -97,21 +99,21 @@ def train(model, dataloader, loss_fn, optimizer, scheduler):
                 total_labels = labels
             else:
                 torch.cat((total_labels, labels))
-        print(f"\tTraining Accuracy: {mca(total_output.to('cuda'), total_labels.to('cuda')) * 100:.2f}%")
-    return mca(total_output.to('cuda'), total_labels.to('cuda')).item()
+        print(f"\tTraining Accuracy: {mca(total_output.to(device), total_labels.to(device)) * 100:.2f}%")
+    return mca(total_output.to(device), total_labels.to(device)).item()
 
 
 def validate(model, dataloader):
     # Validate on testing_set
     model.eval()
     
-    mca = MulticlassAccuracy(num_classes=10).to('cuda')
+    mca = MulticlassAccuracy(num_classes=10).to(device)
     total_output = None
     total_labels = None
     with torch.inference_mode():
         for i, (features, labels) in enumerate(dataloader):
-            features = features.to('cuda')
-            labels = labels.to('cuda')
+            features = features.to(device)
+            labels = labels.to(device)
             
             output = model(features.float())
             if total_output is None:
@@ -124,10 +126,10 @@ def validate(model, dataloader):
             else:
                 torch.cat((total_labels, labels))
                 
-    print(f"\tValidation Accuracy: {mca(total_output.to('cuda'), total_labels.to('cuda')) * 100:.2f}%")
-    return mca(total_output.to('cuda'), total_labels.to('cuda')).item()
+    print(f"\tValidation Accuracy: {mca(total_output.to(device), total_labels.to(device)) * 100:.2f}%")
+    return mca(total_output.to(device), total_labels.to(device)).item()
             
-model = KAN_MNIST_model().to('cuda')
+model = KAN_MNIST_model().to(device)
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=1e-3, weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.8)
@@ -141,7 +143,7 @@ for epoch in range(num_epochs):
     kan_testing_accuracy.append(validate(model, test_dataloader))
     
     
-model = MLP_MNIST_model().to('cuda')
+model = MLP_MNIST_model().to(device)
 loss_fn = nn.CrossEntropyLoss()
 optimizer = torch.optim.AdamW(params=model.parameters(), lr=1e-3, weight_decay=1e-4)
 scheduler = torch.optim.lr_scheduler.ExponentialLR(optimizer=optimizer, gamma=0.8)
